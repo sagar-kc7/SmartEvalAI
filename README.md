@@ -37,6 +37,8 @@ uv run uvicorn smartevalai.main:app --reload
 Open `http://localhost:8000` in your browser.
 
 ## Project Structure
+
+```
 src/smartevalai/
 ├── api/v1/          # FastAPI route handlers
 ├── core/            # Config, security, logging, dependencies
@@ -49,6 +51,7 @@ src/smartevalai/
 │   └── ai/          # Gemini client, prompts, evaluator
 ├── templates/       # Jinja2 HTML templates
 └── utils/           # File storage helpers
+```
 
 ## Running Tests
 
