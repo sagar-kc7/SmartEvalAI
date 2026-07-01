@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{% block title %}SmartEval AI{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: { DEFAULT: "#2563EB", dark: "#1D4ED8" },
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-gray-50 text-gray-800 min-h-screen">
+
+    <nav class="bg-white shadow-sm border-b border-gray-200">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+            <span class="text-xl font-bold text-primary">SmartEval AI</span>
+            <div class="flex gap-4 text-sm" id="nav-links">
+                {% if nav_mode == "auth" %}
+                    <a href="/dashboard/teacher" class="text-gray-600 hover:text-primary transition hidden" id="nav-teacher">Dashboard</a>
+                    <a href="/dashboard/student" class="text-gray-600 hover:text-primary transition hidden" id="nav-student">Dashboard</a>
+                    <button onclick="logout()" class="text-red-500 hover:text-red-700 transition hidden" id="nav-logout">Sign Out</button>
+                {% else %}
+                    <a href="/login" class="text-gray-600 hover:text-primary transition">Login</a>
+                    <a href="/register" class="text-gray-600 hover:text-primary transition">Register</a>
+                {% endif %}
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto px-4 py-8">
+        {% block content %}{% endblock %}
+    </main>
+
+    <script>
+        function saveToken(token) {
+            localStorage.setItem("smarteval_token", token);
+        }
+        function getToken() {
+            return localStorage.getItem("smarteval_token");
+        }
+        function logout() {
+            localStorage.removeItem("smarteval_token");
+            window.location.href = "/login";
+        }
+
+        document.addEventListener("htmx:configRequest", function(evt) {
+            const token = getToken();
+            if (token) {
+                evt.detail.headers["Authorization"] = "Bearer " + token;
+            }
+        });
+
+        (function() {
+            const logout_btn = document.getElementById("nav-logout");
+            if (!logout_btn) return;
+            const token = getToken();
+            if (token) {
+                try {
+                    const payload = JSON.parse(atob(token.split(".")[1]));
+                    logout_btn.classList.remove("hidden");
+                    if (payload.role === "teacher") {
+                        document.getElementById("nav-teacher").classList.remove("hidden");
+                    } else {
+                        document.getElementById("nav-student").classList.remove("hidden");
+                    }
+                } catch(e) {}
+            }
+        })();
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

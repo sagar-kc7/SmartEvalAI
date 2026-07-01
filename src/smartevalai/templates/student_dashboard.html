@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+{% block title %}Student Dashboard — SmartEval AI{% endblock %}
+
+{% block content %}
+<div class="flex items-center justify-between mb-8">
+    <div>
+        <h1 class="text-2xl font-bold text-gray-800">Student Dashboard</h1>
+        <p class="text-gray-500 text-sm mt-1">Upload your answer sheets and view your results</p>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+    <!-- Upload Section -->
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+        <h2 class="text-lg font-semibold mb-4 text-gray-700">Upload Answer Sheet</h2>
+        <div class="space-y-3">
+            <div>
+                <label class="block text-xs font-medium text-gray-500 mb-1">Exam ID</label>
+                <input type="number" id="upload-exam-id" placeholder="Enter exam ID"
+                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-gray-500 mb-1">Answer Sheet (PDF/JPG/PNG)</label>
+                <input type="file" id="upload-file" accept=".pdf,.jpg,.jpeg,.png"
+                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+            </div>
+            <button onclick="uploadSheet()"
+                class="w-full bg-primary hover:bg-primary-dark text-white text-sm font-medium py-2 rounded-lg transition">
+                Upload Answer Sheet
+            </button>
+            <div id="upload-msg" class="text-xs hidden"></div>
+        </div>
+    </div>
+
+    <!-- Process & Results Section -->
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+        <h2 class="text-lg font-semibold mb-4 text-gray-700">Get Evaluation Results</h2>
+        <div class="space-y-3">
+            <div>
+                <label class="block text-xs font-medium text-gray-500 mb-1">Submission ID</label>
+                <input type="number" id="submission-id" placeholder="Enter submission ID"
+                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+            </div>
+            <button onclick="processSubmission()"
+                class="w-full bg-yellow-500 hover:bg-yellow-600 text-white text-sm font-medium py-2 rounded-lg transition">
+                Process Submission (OCR + AI)
+            </button>
+            <button onclick="loadResults()"
+                class="w-full bg-green-600 hover:bg-green-700 text-white text-sm font-medium py-2 rounded-lg transition">
+                View Results
+            </button>
+            <div id="process-msg" class="text-xs hidden"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Results Display -->
+<div id="results-section" class="hidden mt-6">
+    <h2 class="text-lg font-semibold mb-4 text-gray-700">Evaluation Results</h2>
+    <div id="results-container" class="space-y-4"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const token = getToken();
+if (!token) { window.location.href = "/login"; }
+const role = JSON.parse(atob(token.split(".")[1])).role;
+if (role !== "student") { window.location.href = "/dashboard/teacher"; }
+
+async function uploadSheet() {
+    const examId = document.getElementById("upload-exam-id").value;
+    const fileInput = document.getElementById("upload-file");
+    const msg = document.getElementById("upload-msg");
+    if (!examId || !fileInput.files.length) return;
+
+    const formData = new FormData();
+    formData.append("file", fileInput.files[0]);
+
+    const res = await fetch(`/api/v1/submissions/exams/${examId}/upload`, {
+        method: "POST",
+        headers: {"Authorization": "Bearer " + getToken()},
+        body: formData,
+    });
+    const data = await res.json();
+    if (res.ok) {
+        msg.textContent = `Uploaded! Submission ID: ${data.id} — use this ID to process and view results.`;
+        msg.className = "text-xs text-green-600";
+    } else {
+        msg.textContent = data.detail || "Upload failed.";
+        msg.className = "text-xs text-red-600";
+    }
+    msg.classList.remove("hidden");
+}
+
+async function processSubmission() {
+    const submissionId = document.getElementById("submission-id").value;
+    const msg = document.getElementById("process-msg");
+    if (!submissionId) return;
+
+    msg.textContent = "Processing... this may take up to 30 seconds.";
+    msg.className = "text-xs text-yellow-600";
+    msg.classList.remove("hidden");
+
+    const res = await fetch(`/api/v1/submissions/${submissionId}/process`, {
+        method: "POST",
+        headers: {"Authorization": "Bearer " + getToken()},
+    });
+    const data = await res.json();
+    if (res.ok) {
+        msg.textContent = "Processing complete! Click 'View Results' to see your evaluation.";
+        msg.className = "text-xs text-green-600";
+    } else {
+        msg.textContent = data.detail || "Processing failed.";
+        msg.className = "text-xs text-red-600";
+    }
+}
+
+async function loadResults() {
+    const submissionId = document.getElementById("submission-id").value;
+    if (!submissionId) return;
+
+    const res = await fetch(`/api/v1/submissions/${submissionId}/results`, {
+        headers: {"Authorization": "Bearer " + getToken()},
+    });
+    const data = await res.json();
+    if (!res.ok) {
+        document.getElementById("process-msg").textContent = data.detail || "Could not load results.";
+        return;
+    }
+
+    const container = document.getElementById("results-container");
+    container.innerHTML = "";
+
+    data.evaluations.forEach((ev, i) => {
+        const fb = data.feedback.find(f => f.evaluation_id === ev.id);
+        const missing = ev.missing_points ? JSON.parse(ev.missing_points) : [];
+        const strong = ev.strong_points ? JSON.parse(ev.strong_points) : [];
+
+        container.innerHTML += `
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+            <div class="flex items-center justify-between mb-3">
+                <span class="text-sm font-semibold text-gray-700">Question ${i + 1}</span>
+                <span class="text-lg font-bold text-primary">${ev.final_marks} marks</span>
+            </div>
+            ${ev.similarity_score !== null ? `
+            <div class="flex gap-4 text-xs text-gray-500 mb-3">
+                <span>Similarity: <strong>${(ev.similarity_score * 100).toFixed(1)}%</strong></span>
+                <span>AI Score: <strong>${ev.llm_score}</strong></span>
+            </div>` : ""}
+            ${ev.explanation ? `<p class="text-sm text-gray-600 mb-3">${ev.explanation}</p>` : ""}
+            ${strong.length ? `
+            <div class="mb-2">
+                <p class="text-xs font-semibold text-green-700 mb-1">✓ Strong Points</p>
+                <ul class="list-disc list-inside text-xs text-green-600 space-y-0.5">
+                    ${strong.map(p => `<li>${p}</li>`).join("")}
+                </ul>
+            </div>` : ""}
+            ${missing.length ? `
+            <div class="mb-2">
+                <p class="text-xs font-semibold text-red-700 mb-1">✗ Missing Points</p>
+                <ul class="list-disc list-inside text-xs text-red-500 space-y-0.5">
+                    ${missing.map(p => `<li>${p}</li>`).join("")}
+                </ul>
+            </div>` : ""}
+            ${fb ? `
+            <div class="bg-blue-50 rounded-lg p-3 mt-3">
+                <p class="text-xs font-semibold text-blue-700 mb-1">💬 Feedback</p>
+                <p class="text-xs text-blue-600">${fb.content}</p>
+            </div>` : ""}
+        </div>`;
+    });
+
+    document.getElementById("results-section").classList.remove("hidden");
+}
+</script>
+{% endblock %}

@@ -1,0 +1,218 @@
+{% extends "base.html" %}
+{% block title %}Teacher Dashboard — SmartEval AI{% endblock %}
+
+{% block content %}
+<div id="auth-check"></div>
+
+<div class="flex items-center justify-between mb-8">
+    <div>
+        <h1 class="text-2xl font-bold text-gray-800">Teacher Dashboard</h1>
+        <p class="text-gray-500 text-sm mt-1">Manage your exams, questions, and view results</p>
+    </div>
+</div>
+
+<!-- Create Exam Section -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+        <h2 class="text-lg font-semibold mb-4 text-gray-700">Create Subject</h2>
+        <div class="space-y-3">
+            <input type="text" id="subject-name" placeholder="e.g. Data Structures"
+                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+            <button onclick="createSubject()"
+                class="w-full bg-primary hover:bg-primary-dark text-white text-sm font-medium py-2 rounded-lg transition">
+                Create Subject
+            </button>
+            <div id="subject-msg" class="text-xs text-green-600 hidden"></div>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+        <h2 class="text-lg font-semibold mb-4 text-gray-700">Create Exam</h2>
+        <div class="space-y-3">
+            <input type="text" id="exam-title" placeholder="e.g. Midterm Exam"
+                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+            <input type="number" id="exam-subject-id" placeholder="Subject ID"
+                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+            <button onclick="createExam()"
+                class="w-full bg-primary hover:bg-primary-dark text-white text-sm font-medium py-2 rounded-lg transition">
+                Create Exam
+            </button>
+            <div id="exam-msg" class="text-xs text-green-600 hidden"></div>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+        <h2 class="text-lg font-semibold mb-4 text-gray-700">Add Question</h2>
+        <div class="space-y-3">
+            <input type="number" id="q-exam-id" placeholder="Exam ID"
+                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+            <input type="text" id="q-number" placeholder="Question number (e.g. 1)"
+                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+            <textarea id="q-text" placeholder="Question text" rows="2"
+                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"></textarea>
+            <select id="q-type" onchange="toggleQuestionFields()"
+                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary">
+                <option value="descriptive">Descriptive</option>
+                <option value="mcq">MCQ</option>
+            </select>
+            <input type="number" id="q-marks" placeholder="Max marks" value="1"
+                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+
+            <div id="descriptive-fields">
+                <textarea id="q-official-answer" placeholder="Official answer" rows="2"
+                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"></textarea>
+            </div>
+            <div id="mcq-fields" class="hidden space-y-2">
+                <input type="text" id="q-options" placeholder="Options comma-separated: a,b,c,d"
+                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                <input type="text" id="q-correct" placeholder="Correct option"
+                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+            </div>
+            <button onclick="createQuestion()"
+                class="w-full bg-primary hover:bg-primary-dark text-white text-sm font-medium py-2 rounded-lg transition">
+                Add Question
+            </button>
+            <div id="q-msg" class="text-xs text-green-600 hidden"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Results Section -->
+<div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
+    <h2 class="text-lg font-semibold mb-4 text-gray-700">View Exam Results & Reports</h2>
+    <div class="flex gap-3 items-end flex-wrap">
+        <div>
+            <label class="block text-xs font-medium text-gray-500 mb-1">Exam ID</label>
+            <input type="number" id="report-exam-id" placeholder="1"
+                class="border border-gray-300 rounded-lg px-3 py-2 text-sm w-28 focus:outline-none focus:ring-2 focus:ring-primary" />
+        </div>
+        <button onclick="loadAnalytics()"
+            class="bg-blue-50 hover:bg-blue-100 text-blue-700 text-sm font-medium px-4 py-2 rounded-lg transition border border-blue-200">
+            Load Analytics
+        </button>
+        <a id="csv-link" href="#"
+            class="bg-green-50 hover:bg-green-100 text-green-700 text-sm font-medium px-4 py-2 rounded-lg transition border border-green-200">
+            Download CSV
+        </a>
+        <a id="pdf-link" href="#"
+            class="bg-red-50 hover:bg-red-100 text-red-700 text-sm font-medium px-4 py-2 rounded-lg transition border border-red-200">
+            Download PDF
+        </a>
+    </div>
+    <div id="analytics-result" class="mt-4 hidden">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-2">
+            <div class="bg-blue-50 rounded-xl p-4 text-center">
+                <div class="text-2xl font-bold text-blue-700" id="stat-submissions">—</div>
+                <div class="text-xs text-blue-500 mt-1">Submissions</div>
+            </div>
+            <div class="bg-green-50 rounded-xl p-4 text-center">
+                <div class="text-2xl font-bold text-green-700" id="stat-avg-marks">—</div>
+                <div class="text-xs text-green-500 mt-1">Avg Marks</div>
+            </div>
+            <div class="bg-purple-50 rounded-xl p-4 text-center">
+                <div class="text-2xl font-bold text-purple-700" id="stat-avg-similarity">—</div>
+                <div class="text-xs text-purple-500 mt-1">Avg Similarity</div>
+            </div>
+            <div class="bg-yellow-50 rounded-xl p-4 text-center">
+                <div class="text-2xl font-bold text-yellow-700" id="stat-avg-llm">—</div>
+                <div class="text-xs text-yellow-500 mt-1">Avg AI Score</div>
+            </div>
+        </div>
+        <div class="mt-4">
+            <p class="text-sm font-medium text-gray-600 mb-2">Score Distribution</p>
+            <div id="score-dist" class="flex gap-2 flex-wrap"></div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Redirect if not logged in as teacher
+const token = getToken();
+if (!token) { window.location.href = "/login"; }
+const role = JSON.parse(atob(token.split(".")[1])).role;
+if (role !== "teacher") { window.location.href = "/dashboard/student"; }
+
+function toggleQuestionFields() {
+    const type = document.getElementById("q-type").value;
+    document.getElementById("descriptive-fields").classList.toggle("hidden", type !== "descriptive");
+    document.getElementById("mcq-fields").classList.toggle("hidden", type !== "mcq");
+}
+
+async function apiPost(url, body) {
+    const res = await fetch(url, {
+        method: "POST",
+        headers: {"Content-Type": "application/json", "Authorization": "Bearer " + getToken()},
+        body: JSON.stringify(body),
+    });
+    return res.json();
+}
+
+async function createSubject() {
+    const name = document.getElementById("subject-name").value.trim();
+    if (!name) return;
+    const data = await apiPost("/api/v1/exams/subjects", {name});
+    const msg = document.getElementById("subject-msg");
+    msg.textContent = `Subject created: ID ${data.id}`;
+    msg.classList.remove("hidden");
+}
+
+async function createExam() {
+    const title = document.getElementById("exam-title").value.trim();
+    const subject_id = parseInt(document.getElementById("exam-subject-id").value);
+    if (!title || !subject_id) return;
+    const data = await apiPost("/api/v1/exams", {title, subject_id});
+    const msg = document.getElementById("exam-msg");
+    msg.textContent = `Exam created: ID ${data.id}`;
+    msg.classList.remove("hidden");
+}
+
+async function createQuestion() {
+    const exam_id = parseInt(document.getElementById("q-exam-id").value);
+    const question_number = document.getElementById("q-number").value.trim();
+    const question_text = document.getElementById("q-text").value.trim();
+    const question_type = document.getElementById("q-type").value;
+    const max_marks = parseFloat(document.getElementById("q-marks").value);
+    let body = {exam_id, question_number, question_text, question_type, max_marks};
+
+    if (question_type === "mcq") {
+        body.options = document.getElementById("q-options").value.split(",").map(s => s.trim());
+        body.correct_option = document.getElementById("q-correct").value.trim();
+    } else {
+        body.official_answer = document.getElementById("q-official-answer").value.trim();
+    }
+
+    const data = await apiPost(`/api/v1/exams/${exam_id}/questions`, body);
+    const msg = document.getElementById("q-msg");
+    msg.textContent = `Question added: ID ${data.id}`;
+    msg.classList.remove("hidden");
+}
+
+async function loadAnalytics() {
+    const examId = document.getElementById("report-exam-id").value;
+    if (!examId) return;
+
+    document.getElementById("csv-link").href = `/api/v1/reports/exams/${examId}/csv`;
+    document.getElementById("pdf-link").href = `/api/v1/reports/exams/${examId}/pdf`;
+
+    const res = await fetch(`/api/v1/reports/exams/${examId}/analytics`, {
+        headers: {"Authorization": "Bearer " + getToken()}
+    });
+    const data = await res.json();
+
+    document.getElementById("stat-submissions").textContent = data.total_submissions;
+    document.getElementById("stat-avg-marks").textContent = data.average_final_marks;
+    document.getElementById("stat-avg-similarity").textContent = data.average_similarity ?? "—";
+    document.getElementById("stat-avg-llm").textContent = data.average_llm_score ?? "—";
+
+    const distDiv = document.getElementById("score-dist");
+    distDiv.innerHTML = "";
+    for (const [bucket, count] of Object.entries(data.score_distribution)) {
+        distDiv.innerHTML += `<span class="bg-gray-100 text-gray-700 text-xs px-3 py-1 rounded-full font-medium">${bucket}: ${count}</span>`;
+    }
+
+    document.getElementById("analytics-result").classList.remove("hidden");
+}
+</script>
+{% endblock %}

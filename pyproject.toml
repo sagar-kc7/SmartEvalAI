@@ -1,0 +1,44 @@
+[project]
+name = "smartevalai"
+version = "0.1.0"
+description = "AI-powered student answer evaluation platform using OCR, semantic similarity, and LLMs."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi[standard]>=0.115.0",
+    "sqlmodel>=0.0.22",
+    "pydantic-settings>=2.6.0",
+    "alembic>=1.14.0",
+    "loguru>=0.7.2",
+    "jinja2>=3.1.4",
+    "python-multipart>=0.0.12",
+    "bcrypt>=4.2.0",
+    "pyjwt>=2.10.0",
+    "paddlepaddle>=3.3.1",
+    "reportlab>=5.0.0",
+]
+
+[project.optional-dependencies]
+ai = [
+    "google-genai>=0.3.0",
+    "sentence-transformers>=3.3.0",
+]
+ocr = [
+    "paddleocr>=2.9.1",
+    "easyocr>=1.7.2",
+    "pdf2image>=1.17.0",
+    "pillow>=11.0.0",
+    "opencv-python-headless>=4.10.0",
+]
+dev = [
+    "pytest>=8.3.0",
+    "pytest-asyncio>=0.24.0",
+    "httpx>=0.28.0",
+]
+
+[project.scripts]
+smartevalai = "smartevalai:main"
+
+[build-system]
+requires = ["uv_build>=0.11.7,<0.12.0"]
+build-backend = "uv_build"

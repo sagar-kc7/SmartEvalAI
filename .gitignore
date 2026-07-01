@@ -1,0 +1,35 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+# Environment variables
+.env
+
+# Database
+*.db
+*.sqlite3
+
+# Logs
+logs/uploads/
+
+# Debug and test images
+debug_*.png
+stage*.png
+test_*.png
+test_*.jpg
+
+# Generated reports
+exam_report.csv
+exam_report.pdf
+
+# Uploaded files
+uploads/
+
+# Stray files
+src/a

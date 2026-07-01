@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}Login — SmartEval AI{% endblock %}
+
+{% block content %}
+<div class="min-h-[80vh] flex items-center justify-center">
+    <div class="bg-white rounded-2xl shadow-md p-8 w-full max-w-md">
+        <h1 class="text-2xl font-bold text-gray-800 mb-1">Welcome back</h1>
+        <p class="text-gray-500 text-sm mb-6">Sign in to your SmartEval AI account</p>
+
+        <div id="error-msg" class="hidden bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3 mb-4"></div>
+
+        <form id="login-form" class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                <input type="email" id="email" required
+                    class="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                    placeholder="you@example.com" />
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                <input type="password" id="password" required
+                    class="w-full border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                    placeholder="••••••••" />
+            </div>
+            <button type="submit"
+                class="w-full bg-primary hover:bg-primary-dark text-white font-semibold py-2 rounded-lg transition text-sm">
+                Sign In
+            </button>
+        </form>
+
+        <p class="text-center text-sm text-gray-500 mt-6">
+            Don't have an account?
+            <a href="/register" class="text-primary hover:underline font-medium">Register</a>
+        </p>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById("login-form").addEventListener("submit", async function(e) {
+    e.preventDefault();
+    const email = document.getElementById("email").value;
+    const password = document.getElementById("password").value;
+    const errorDiv = document.getElementById("error-msg");
+    errorDiv.classList.add("hidden");
+
+    const formData = new URLSearchParams();
+    formData.append("username", email);
+    formData.append("password", password);
+
+    try {
+        const res = await fetch("/api/v1/auth/login", {
+            method: "POST",
+            headers: {"Content-Type": "application/x-www-form-urlencoded"},
+            body: formData,
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+            errorDiv.textContent = data.detail || "Login failed.";
+            errorDiv.classList.remove("hidden");
+            return;
+        }
+
+        saveToken(data.access_token);
+
+        // Decode role from JWT payload (middle part, base64)
+        const payload = JSON.parse(atob(data.access_token.split(".")[1]));
+        if (payload.role === "teacher") {
+            window.location.href = "/dashboard/teacher";
+        } else {
+            window.location.href = "/dashboard/student";
+        }
+    } catch(err) {
+        errorDiv.textContent = "Network error. Please try again.";
+        errorDiv.classList.remove("hidden");
+    }
+});
+</script>
+{% endblock %}
