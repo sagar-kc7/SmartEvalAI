@@ -79,28 +79,30 @@
 
 <!-- Results Section -->
 <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
-    <h2 class="text-lg font-semibold mb-4 text-gray-700">View Exam Results & Reports</h2>
-    <div class="flex gap-3 items-end flex-wrap">
+    <h2 class="text-lg font-semibold mb-4 text-gray-700">Exam Results & Reports</h2>
+    <div class="flex gap-3 items-end flex-wrap mb-4">
         <div>
             <label class="block text-xs font-medium text-gray-500 mb-1">Exam ID</label>
             <input type="number" id="report-exam-id" placeholder="1"
                 class="border border-gray-300 rounded-lg px-3 py-2 text-sm w-28 focus:outline-none focus:ring-2 focus:ring-primary" />
         </div>
-        <button onclick="loadAnalytics()"
-            class="bg-blue-50 hover:bg-blue-100 text-blue-700 text-sm font-medium px-4 py-2 rounded-lg transition border border-blue-200">
-            Load Analytics
+        <button onclick="loadResults()"
+            class="bg-primary hover:bg-primary-dark text-white text-sm font-medium px-4 py-2 rounded-lg transition">
+            Load Results
         </button>
-        <a id="csv-link" href="#"
-            class="bg-green-50 hover:bg-green-100 text-green-700 text-sm font-medium px-4 py-2 rounded-lg transition border border-green-200">
+        <a id="csv-link" href="#" onclick="return downloadReport('csv')"
+            class="bg-green-50 hover:bg-green-100 text-green-700 text-sm font-medium px-4 py-2 rounded-lg transition border border-green-200 cursor-pointer">
             Download CSV
         </a>
-        <a id="pdf-link" href="#"
-            class="bg-red-50 hover:bg-red-100 text-red-700 text-sm font-medium px-4 py-2 rounded-lg transition border border-red-200">
+        <a id="pdf-link" href="#" onclick="return downloadReport('pdf')"
+            class="bg-red-50 hover:bg-red-100 text-red-700 text-sm font-medium px-4 py-2 rounded-lg transition border border-red-200 cursor-pointer">
             Download PDF
         </a>
     </div>
-    <div id="analytics-result" class="mt-4 hidden">
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-2">
+
+    <!-- Analytics Summary Cards -->
+    <div id="analytics-result" class="hidden mb-6">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
             <div class="bg-blue-50 rounded-xl p-4 text-center">
                 <div class="text-2xl font-bold text-blue-700" id="stat-submissions">—</div>
                 <div class="text-xs text-blue-500 mt-1">Submissions</div>
@@ -118,10 +120,27 @@
                 <div class="text-xs text-yellow-500 mt-1">Avg AI Score</div>
             </div>
         </div>
-        <div class="mt-4">
-            <p class="text-sm font-medium text-gray-600 mb-2">Score Distribution</p>
-            <div id="score-dist" class="flex gap-2 flex-wrap"></div>
+    </div>
+
+    <!-- Detailed Results Table -->
+    <div id="results-table-section" class="hidden">
+        <h3 class="text-sm font-semibold text-gray-600 mb-3">Detailed Results by Student</h3>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm border-collapse">
+                <thead>
+                    <tr class="bg-primary text-white">
+                        <th class="px-4 py-3 text-left rounded-tl-lg">Student</th>
+                        <th class="px-4 py-3 text-left">Question</th>
+                        <th class="px-4 py-3 text-center">Marks</th>
+                        <th class="px-4 py-3 text-center">Similarity</th>
+                        <th class="px-4 py-3 text-center">AI Score</th>
+                        <th class="px-4 py-3 text-left rounded-tr-lg">Feedback</th>
+                    </tr>
+                </thead>
+                <tbody id="results-table-body"></tbody>
+            </table>
         </div>
+        <p id="no-results-msg" class="hidden text-sm text-gray-400 text-center py-6">No submissions found for this exam yet.</p>
     </div>
 </div>
 {% endblock %}
@@ -189,30 +208,83 @@ async function createQuestion() {
     msg.classList.remove("hidden");
 }
 
-async function loadAnalytics() {
+function downloadReport(type) {
+    const examId = document.getElementById("report-exam-id").value;
+    if (!examId) return false;
+    const token = getToken();
+    fetch(`/api/v1/reports/exams/${examId}/${type}`, {
+        headers: {"Authorization": "Bearer " + token}
+    }).then(res => res.blob()).then(blob => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `exam_${examId}_report.${type}`;
+        a.click();
+        URL.revokeObjectURL(url);
+    });
+    return false;
+}
+
+async function loadResults() {
     const examId = document.getElementById("report-exam-id").value;
     if (!examId) return;
+    const token = getToken();
 
-    document.getElementById("csv-link").href = `/api/v1/reports/exams/${examId}/csv`;
-    document.getElementById("pdf-link").href = `/api/v1/reports/exams/${examId}/pdf`;
-
-    const res = await fetch(`/api/v1/reports/exams/${examId}/analytics`, {
-        headers: {"Authorization": "Bearer " + getToken()}
+    // Load analytics
+    const analyticsRes = await fetch(`/api/v1/reports/exams/${examId}/analytics`, {
+        headers: {"Authorization": "Bearer " + token}
     });
-    const data = await res.json();
+    const analytics = await analyticsRes.json();
+    document.getElementById("stat-submissions").textContent = analytics.total_submissions;
+    document.getElementById("stat-avg-marks").textContent = analytics.average_final_marks;
+    document.getElementById("stat-avg-similarity").textContent = analytics.average_similarity ?? "—";
+    document.getElementById("stat-avg-llm").textContent = analytics.average_llm_score ?? "—";
+    document.getElementById("analytics-result").classList.remove("hidden");
 
-    document.getElementById("stat-submissions").textContent = data.total_submissions;
-    document.getElementById("stat-avg-marks").textContent = data.average_final_marks;
-    document.getElementById("stat-avg-similarity").textContent = data.average_similarity ?? "—";
-    document.getElementById("stat-avg-llm").textContent = data.average_llm_score ?? "—";
+    // Load detailed rows from CSV data via report endpoint
+    const csvRes = await fetch(`/api/v1/reports/exams/${examId}/csv`, {
+        headers: {"Authorization": "Bearer " + token}
+    });
+    const csvText = await csvRes.text();
+    const lines = csvText.trim().split("\n").slice(1); // skip header
 
-    const distDiv = document.getElementById("score-dist");
-    distDiv.innerHTML = "";
-    for (const [bucket, count] of Object.entries(data.score_distribution)) {
-        distDiv.innerHTML += `<span class="bg-gray-100 text-gray-700 text-xs px-3 py-1 rounded-full font-medium">${bucket}: ${count}</span>`;
+    const tbody = document.getElementById("results-table-body");
+    tbody.innerHTML = "";
+
+    if (lines.length === 0 || (lines.length === 1 && lines[0] === "")) {
+        document.getElementById("no-results-msg").classList.remove("hidden");
+        document.getElementById("results-table-section").classList.remove("hidden");
+        return;
     }
 
-    document.getElementById("analytics-result").classList.remove("hidden");
+    document.getElementById("no-results-msg").classList.add("hidden");
+
+    lines.forEach((line, i) => {
+        // Parse CSV row carefully (feedback may contain commas)
+        const parts = line.match(/(".*?"|[^",]+)(?=\s*,|\s*$)/g) || [];
+        const clean = parts.map(p => p.replace(/^"|"$/g, "").trim());
+        const [student, question, marks, maxMarks, similarity, aiScore, ...feedbackParts] = clean;
+        const feedback = feedbackParts.join(" ").replace(/^"|"$/g, "");
+
+        const row = document.createElement("tr");
+        row.className = i % 2 === 0 ? "bg-white" : "bg-gray-50";
+        row.innerHTML = `
+            <td class="px-4 py-3 font-medium text-gray-800 whitespace-nowrap">${student || "—"}</td>
+            <td class="px-4 py-3 text-gray-600 max-w-xs">${question || "—"}</td>
+            <td class="px-4 py-3 text-center">
+                <span class="font-bold text-primary">${marks || "0"}</span>
+                <span class="text-gray-400 text-xs">/${maxMarks || "?"}</span>
+            </td>
+            <td class="px-4 py-3 text-center text-purple-600 font-medium">
+                ${similarity ? (parseFloat(similarity) * 100).toFixed(1) + "%" : "—"}
+            </td>
+            <td class="px-4 py-3 text-center text-yellow-600 font-medium">${aiScore || "—"}</td>
+            <td class="px-4 py-3 text-gray-500 text-xs max-w-sm">${feedback || "—"}</td>
+        `;
+        tbody.appendChild(row);
+    });
+
+    document.getElementById("results-table-section").classList.remove("hidden");
 }
 </script>
 {% endblock %}

@@ -26,36 +26,34 @@ def _get_client() -> genai.Client:
     return _client
 
 
-def generate_json(prompt: str) -> dict:
-    """Send a prompt to Gemini and parse its response as JSON.
+def generate_json(prompt: str, retries: int = 3) -> dict:
+    """Send a prompt to Gemini and parse its response as JSON."""
+    import time
 
-    The prompt is expected to instruct Gemini to return ONLY a JSON object
-    (no markdown fences, no commentary) — see the prompt builders in
-    `prompts.py` for the exact instructions used.
-
-    Args:
-        prompt: The full prompt text to send.
-
-    Returns:
-        The parsed JSON response as a dict.
-
-    Raises:
-        ValueError: If Gemini's response isn't valid JSON.
-    """
     client = _get_client()
-    response = client.models.generate_content(model=_MODEL_NAME, contents=prompt)
-    raw_text = response.text.strip()
 
-    # Defensive cleanup: occasionally models wrap JSON in markdown fences
-    # even when instructed not to.
-    if raw_text.startswith("```"):
-        raw_text = raw_text.strip("`")
-        if raw_text.startswith("json"):
-            raw_text = raw_text[4:]
-        raw_text = raw_text.strip()
+    for attempt in range(retries):
+        try:
+            response = client.models.generate_content(model=_MODEL_NAME, contents=prompt)
+            raw_text = response.text.strip()
 
-    try:
-        return json.loads(raw_text)
-    except json.JSONDecodeError as exc:
-        logger.error(f"Gemini returned invalid JSON: {raw_text[:500]}")
-        raise ValueError(f"Gemini response was not valid JSON: {exc}") from exc
+            if raw_text.startswith("```"):
+                raw_text = raw_text.strip("`")
+                if raw_text.startswith("json"):
+                    raw_text = raw_text[4:]
+                raw_text = raw_text.strip()
+
+            return json.loads(raw_text)
+
+        except Exception as exc:
+            is_last = attempt == retries - 1
+            if "503" in str(exc) or "UNAVAILABLE" in str(exc):
+                if is_last:
+                    raise
+                wait = 5 * (attempt + 1)
+                logger.warning(f"Gemini 503, retrying in {wait}s (attempt {attempt + 1}/{retries})")
+                time.sleep(wait)
+            else:
+                raise
+
+    raise RuntimeError("Gemini failed after all retries")
