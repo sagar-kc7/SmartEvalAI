@@ -25,7 +25,7 @@ An AI-powered student answer evaluation platform that automatically grades handw
 ## Setup
 
 ```bash
-git clone https://github.com/sagar-kc7/SmartEvalAI.git
+git clone https://github.com/prakriti-pokharel/SmartEvalAI.git
 cd SmartEvalAI
 cp .env.example .env        # add your GEMINI_API_KEY
 uv sync --extra ai --extra ocr --extra dev
